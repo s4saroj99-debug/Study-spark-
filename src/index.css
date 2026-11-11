@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+:root {
+  --primary-color: #6366f1;
+  --primary-color-rgb: 99, 102, 241;
+  --secondary-color: #8b5cf6;
+  --accent-color: #ec4899;
+  --bg-primary: #09090f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a24;
+  --card-bg: #12121a;
+  --card-border: #232332;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  overflow-x: hidden;
+}
+
+/* Themes */
+body.dark {
+  --primary-color: #6366f1;
+  --primary-color-rgb: 99, 102, 241;
+  --secondary-color: #8b5cf6;
+  --bg-primary: #09090f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1c1c28;
+  --card-bg: #12121a;
+  --card-border: #232332;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+}
+
+body.sandalwood {
+  --primary-color: #c27803;
+  --primary-color-rgb: 194, 120, 3;
+  --secondary-color: #935600;
+  --bg-primary: #1d1712;
+  --bg-secondary: #27201a;
+  --bg-tertiary: #352b23;
+  --card-bg: #27201a;
+  --card-border: #44372e;
+  --text-primary: #fef3c7;
+  --text-secondary: #d4b483;
+}
+
+body.forest-emerald {
+  --primary-color: #10b981;
+  --primary-color-rgb: 16, 185, 129;
+  --secondary-color: #059669;
+  --bg-primary: #061912;
+  --bg-secondary: #0c261c;
+  --bg-tertiary: #143528;
+  --card-bg: #0c261c;
+  --card-border: #1a4d3b;
+  --text-primary: #ecfdf5;
+  --text-secondary: #a7f3d0;
+}
+
+body.ocean-deep {
+  --primary-color: #0284c7;
+  --primary-color-rgb: 2, 132, 199;
+  --secondary-color: #0369a1;
+  --bg-primary: #04121e;
+  --bg-secondary: #081d2f;
+  --bg-tertiary: #0f2c45;
+  --card-bg: #081d2f;
+  --card-border: #153e63;
+  --text-primary: #f0f9ff;
+  --text-secondary: #bae6fd;
+}
+
+body.sakura-blossom {
+  --primary-color: #ec4899;
+  --primary-color-rgb: 236, 72, 153;
+  --secondary-color: #db2777;
+  --bg-primary: #190914;
+  --bg-secondary: #260f20;
+  --bg-tertiary: #36172e;
+  --card-bg: #260f20;
+  --card-border: #4d1c41;
+  --text-primary: #fdf2f8;
+  --text-secondary: #fbcfe8;
+}
+
+body.dracula-midnight {
+  --primary-color: #bd93f9;
+  --primary-color-rgb: 189, 147, 249;
+  --secondary-color: #ff79c6;
+  --bg-primary: #1e1f29;
+  --bg-secondary: #282a36;
+  --bg-tertiary: #343746;
+  --card-bg: #282a36;
+  --card-border: #44475a;
+  --text-primary: #f8f8f2;
+  --text-secondary: #bfbfbf;
+}
+
+body.lavender-mist {
+  --primary-color: #a855f7;
+  --primary-color-rgb: 168, 85, 247;
+  --secondary-color: #9333ea;
+  --bg-primary: #120b1e;
+  --bg-secondary: #1a122a;
+  --bg-tertiary: #261b3c;
+  --card-bg: #1a122a;
+  --card-border: #3b2b5d;
+  --text-primary: #faf5ff;
+  --text-secondary: #e9d5ff;
+}
+
+body.cyberpunk-neon {
+  --primary-color: #00f0ff;
+  --primary-color-rgb: 0, 240, 255;
+  --secondary-color: #ffe600;
+  --bg-primary: #0a0b10;
+  --bg-secondary: #12131e;
+  --bg-tertiary: #1b1d2e;
+  --card-bg: #12131e;
+  --card-border: #00f0ff33;
+  --text-primary: #ffffff;
+  --text-secondary: #00f0ffcc;
+}
+
+body.light {
+  --primary-color: #4f46e5;
+  --primary-color-rgb: 79, 70, 229;
+  --secondary-color: #4338ca;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #94a3b8;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom modern scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Hide scrollbar for tabs */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

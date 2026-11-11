@@ -1,0 +1,6 @@
+{
+  "name": "VidCloud & StudyStark App",
+  "description": "Official VidCloud & StudyStark progressive web app for browsing 18,000+ batches, streaming lectures, managing watch history, and distraction-free learning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
