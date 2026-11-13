@@ -2,18 +2,18 @@ import React, { useState, useEffect, useMemo, useTransition } from 'react';
 import {
   Search,
   BookOpen,
-  Filter,
   GraduationCap,
   Sparkles,
   WifiOff,
   Flame,
-  ArrowRight,
   RefreshCw,
-  Globe,
-  SlidersHorizontal,
+  Compass,
+  Trophy,
+  Plus,
 } from 'lucide-react';
-import { BatchItem, WatchHistoryItem, ThemeId, NavTab, AppControls } from './types';
+import { AdventureState, BatchItem, WatchHistoryItem, ThemeId, NavTab, AppControls } from './types';
 import {
+  clearBatchCatalogCache,
   fetchAllBatches,
   fetchAppControls,
   getFavorites,
@@ -23,16 +23,24 @@ import {
   getStoredTheme,
   setStoredTheme,
 } from './services/batchService';
+import {
+  addCustomBatch,
+  getAdventureMetrics,
+  getAdventureState,
+  resetAdventureProgress,
+  toggleEnrolledBatch,
+  toggleLectureCompleted,
+} from './services/adventureService';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { BatchCard } from './components/BatchCard';
 import { BatchDetailsModal } from './components/BatchDetailsModal';
-import { VideoPlayerView } from './components/VideoPlayerView';
-import { CloudWebview } from './components/CloudWebview';
+import { VideoPlayerView, ActiveLectureInput } from './components/VideoPlayerView';
 import { ThemeModal } from './components/ThemeModal';
 import { AboutModal } from './components/AboutModal';
+import { AddBatchModal } from './components/AddBatchModal';
 import { FavoritesView } from './components/FavoritesView';
 import { WatchHistoryView } from './components/WatchHistoryView';
 import { SettingsView } from './components/SettingsView';
@@ -53,21 +61,17 @@ export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
 
-  // Favorites & History
+  // Favorites, History & Batch Adventure
   const [favorites, setFavorites] = useState<string[]>([]);
   const [watchHistory, setWatchHistory] = useState<WatchHistoryItem[]>([]);
+  const [adventureState, setAdventureState] = useState<AdventureState>(() => getAdventureState());
 
   // Modals & Active Viewers
   const [selectedBatch, setSelectedBatch] = useState<BatchItem | null>(null);
-  const [activeLecture, setActiveLecture] = useState<{
-    title: string;
-    videoUrl: string;
-    batchId?: string;
-    batchName?: string;
-    duration?: number;
-  } | null>(null);
+  const [activeLecture, setActiveLecture] = useState<ActiveLectureInput | null>(null);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isAddBatchModalOpen, setIsAddBatchModalOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ThemeId>('dark');
   const [appControls, setAppControls] = useState<AppControls | null>(null);
 
@@ -124,11 +128,40 @@ export default function App() {
     setWatchHistory(getWatchHistory());
   };
 
+  const adventureMetrics = useMemo(() => getAdventureMetrics(adventureState), [adventureState]);
+
+  const myBatches = useMemo(() => {
+    const enrolledSet = new Set(adventureState.enrolledBatchIds);
+    const customMap = new Map(adventureState.customBatches.map((b) => [b.batch_id, b]));
+    const combined = [...allBatches, ...vidyapeethBatches];
+    const seen = new Set<string>();
+    const out: BatchItem[] = [];
+
+    for (const cb of adventureState.customBatches) {
+      if (!seen.has(cb.batch_id)) {
+        seen.add(cb.batch_id);
+        out.push(cb);
+      }
+    }
+    for (const b of combined) {
+      if (enrolledSet.has(b.batch_id) && !seen.has(b.batch_id)) {
+        seen.add(b.batch_id);
+        out.push(customMap.get(b.batch_id) || b);
+      }
+    }
+    return out;
+  }, [allBatches, vidyapeethBatches, adventureState.enrolledBatchIds, adventureState.customBatches]);
+
   // Filter batches
   const filteredBatches = useMemo(() => {
-    let source = activeCategory === 'vidyapeeth' ? vidyapeethBatches : allBatches;
+    let source =
+      activeCategory === 'mybatches'
+        ? myBatches
+        : activeCategory === 'vidyapeeth'
+        ? vidyapeethBatches
+        : [...adventureState.customBatches, ...allBatches.filter((b) => !adventureState.customBatches.some((c) => c.batch_id === b.batch_id))];
 
-    if (activeCategory !== 'all' && activeCategory !== 'vidyapeeth') {
+    if (activeCategory !== 'all' && activeCategory !== 'vidyapeeth' && activeCategory !== 'mybatches') {
       const catLower = activeCategory.toLowerCase();
       source = source.filter((b) => {
         const exam = (b.exam || '').toLowerCase();
@@ -157,17 +190,26 @@ export default function App() {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      source = source.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          (b.exam && b.exam.toLowerCase().includes(q)) ||
-          (b.byName && b.byName.toLowerCase().includes(q)) ||
-          (b.class && b.class.toLowerCase().includes(q))
-      );
+      const terms = q.split(/\s+/).filter(Boolean);
+      source = source
+        .filter((b) => {
+          const hay = `${b.name || ''} ${b.exam || ''} ${b.byName || ''} ${b.class || ''}`.toLowerCase();
+          return terms.every((t) => hay.includes(t));
+        })
+        .sort((a, b) => {
+          const aName = (a.name || '').toLowerCase();
+          const bName = (b.name || '').toLowerCase();
+          const aExact = aName.includes(q) ? 1 : 0;
+          const bExact = bName.includes(q) ? 1 : 0;
+          if (aExact !== bExact) return bExact - aExact;
+          const ta = a.start_date ? Date.parse(a.start_date) : 0;
+          const tb = b.start_date ? Date.parse(b.start_date) : 0;
+          return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0);
+        });
     }
 
     return source;
-  }, [allBatches, vidyapeethBatches, activeCategory, selectedLanguage, selectedClass, searchQuery]);
+  }, [allBatches, vidyapeethBatches, myBatches, adventureState.customBatches, activeCategory, selectedLanguage, selectedClass, searchQuery]);
 
   const displayedBatches = useMemo(() => {
     return filteredBatches.slice(0, displayCount);
@@ -175,13 +217,19 @@ export default function App() {
 
   const favoriteBatchItems = useMemo(() => {
     const favSet = new Set(favorites);
-    const combined = [...allBatches, ...vidyapeethBatches];
-    return combined.filter((b) => favSet.has(b.batch_id));
-  }, [allBatches, vidyapeethBatches, favorites]);
+    const combined = [...adventureState.customBatches, ...allBatches, ...vidyapeethBatches];
+    const seen = new Set<string>();
+    return combined.filter((b) => {
+      if (!favSet.has(b.batch_id) || seen.has(b.batch_id)) return false;
+      seen.add(b.batch_id);
+      return true;
+    });
+  }, [allBatches, vidyapeethBatches, adventureState.customBatches, favorites]);
 
   // Categories list
   const categories = [
     { id: 'all', label: 'All Batches', count: allBatches.length || '18K+' },
+    { id: 'mybatches', label: 'My Batches', icon: Compass, count: myBatches.length },
     { id: 'jee', label: 'IIT-JEE', icon: Flame },
     { id: 'neet', label: 'NEET', icon: Sparkles },
     { id: 'vidyapeeth', label: 'Vidyapeeth Centers', count: vidyapeethBatches.length || '2.2K+' },
@@ -204,7 +252,10 @@ export default function App() {
         }}
         onOpenThemes={() => setIsThemeModalOpen(true)}
         onOpenAbout={() => setIsAboutModalOpen(true)}
-        onRefresh={loadBatches}
+        onRefresh={async () => {
+          await clearBatchCatalogCache();
+          await loadBatches();
+        }}
         isRefreshing={isLoadingBatches}
         favoritesCount={favorites.length}
       />
@@ -222,11 +273,8 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 pb-20 sm:pb-8">
-        {/* VIEW 1: CLOUD WEBVIEW (Direct vidcloud.eu.org browser) */}
-        {currentTab === 'webview' ? (
-          <CloudWebview onSwitchToNative={() => setCurrentTab('batches')} />
-        ) : currentTab === 'favorites' ? (
-          /* VIEW 2: FAVORITES */
+        {/* VIEW 1: FAVORITES */}
+        {currentTab === 'favorites' ? (
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
             <FavoritesView
               favoriteBatches={favoriteBatchItems}
@@ -241,15 +289,25 @@ export default function App() {
             <WatchHistoryView
               history={watchHistory}
               onPlayItem={(item) => {
-                setActiveLecture({
-                  title: item.title,
-                  videoUrl:
-                    item.videoUrl ||
-                    `https://vidcloud.eu.org/play.php?title=${encodeURIComponent(item.title)}`,
-                  batchId: item.batchId,
-                  batchName: item.batchName,
-                  duration: item.duration,
-                });
+                if (item.batchId && item.subjectId && item.topicId && item.videoId) {
+                  setActiveLecture({
+                    batchId: item.batchId,
+                    batchName: item.batchName,
+                    subjectId: item.subjectId,
+                    topicId: item.topicId,
+                    videoId: item.videoId,
+                    videoType: item.videoType || 'new',
+                    playType: item.playType || 'Lecture',
+                    title: item.title,
+                    rawVideoUrl: item.videoUrl,
+                    resumeSeconds: item.progressSeconds,
+                  });
+                } else {
+                  const found = [...allBatches, ...vidyapeethBatches].find(
+                    (b) => b.batch_id === item.batchId
+                  );
+                  if (found) setSelectedBatch(found);
+                }
               }}
               onClearHistory={handleClearHistory}
               onBrowseBatches={() => setCurrentTab('batches')}
@@ -262,57 +320,92 @@ export default function App() {
               currentTheme={currentTheme}
               onOpenThemes={() => setIsThemeModalOpen(true)}
               onOpenAbout={() => setIsAboutModalOpen(true)}
+              onOpenAddBatch={() => setIsAddBatchModalOpen(true)}
+              onResetAdventure={() => setAdventureState(resetAdventureProgress())}
+              adventureStats={{
+                xp: adventureMetrics.xp,
+                level: adventureMetrics.level,
+                rank: adventureMetrics.rank,
+                currentStreak: adventureMetrics.currentStreak,
+                completedCount: adventureMetrics.completedCount,
+                enrolledCount: myBatches.length,
+              }}
               appControls={appControls}
-              onClearCache={() => {
-                localStorage.removeItem('vidcloud_batches_cache');
-                localStorage.removeItem('vidcloud_batches_cache_time');
-                loadBatches();
-                alert('Local cache reset successfully!');
+              onClearCache={async () => {
+                await clearBatchCatalogCache();
+                await loadBatches();
               }}
             />
           </div>
         ) : (
           /* VIEW 5: BATCHES & SEARCH (Default Native App View) */
           <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-6">
-            {/* Hero / Quick Action Bar */}
-            <div className="relative overflow-hidden rounded-3xl border border-indigo-500/20 bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900/40 p-4 sm:p-6 shadow-xl">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-xs font-bold text-indigo-400">
-                      ⚡ Distraction-Free Study Platform
+            {/* Batch Adventure & Streak Hub */}
+            <div className="relative overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+                    <span className="font-semibold text-[var(--primary-color)]">
+                      Batch Adventure · Lv.{adventureMetrics.level} {adventureMetrics.rank}
                     </span>
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      {allBatches.length > 0 ? `${allBatches.length.toLocaleString()} Batches Online` : 'Loading Batches...'}
+                    <span aria-hidden="true">·</span>
+                    <span className="font-mono tabular-nums">
+                      {allBatches.length > 0 ? `${allBatches.length.toLocaleString()} Batches` : 'Loading Batches...'}
                     </span>
                   </div>
                   <h1 className="font-['Sora'] text-xl sm:text-2xl md:text-3xl font-extrabold text-[var(--text-primary)]">
-                    Explore Courses & Video Lectures
+                    My Batches & Learning Adventure
                   </h1>
                   <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-xl">
-                    Stream IIT-JEE, NEET, Foundation, and Boards lectures with high-res playback,
-                    audio-only power saver mode, and teacher DPP notes.
+                    Track your daily study streak, clear chapter stages to earn XP, and stream
+                    lectures with notes directly inside your app.
                   </p>
                 </div>
 
-                {/* Quick Shortcuts */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => setCurrentTab('webview')}
-                    className="flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-600/10 px-3.5 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-600/20 transition"
-                  >
-                    <Globe className="h-4 w-4 text-indigo-400" />
-                    <span>Open VidCloud Web</span>
-                  </button>
-                  <a
-                    href="https://telegram.me/studystark"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 rounded-xl bg-sky-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-sky-600/20 hover:bg-sky-500 transition active:scale-95"
-                  >
-                    <span>Telegram Batches</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </a>
+                {/* Live Adventure Stats + Add Batch Controls */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="grid grid-cols-3 gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-secondary)] px-4 py-3 text-center">
+                    <div>
+                      <div className="flex items-center justify-center gap-1 font-mono tabular-nums text-base font-extrabold text-amber-400">
+                        <Flame className="h-4 w-4" />
+                        <span>{adventureMetrics.currentStreak}d</span>
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)]">Streak</div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-center gap-1 font-mono tabular-nums text-base font-extrabold text-emerald-400">
+                        <Trophy className="h-4 w-4" />
+                        <span>{adventureMetrics.xp}</span>
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)]">Total XP</div>
+                    </div>
+                    <div>
+                      <div className="font-mono tabular-nums text-base font-extrabold text-[var(--text-primary)]">
+                        {adventureMetrics.completedCount}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-secondary)]">Cleared</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setActiveCategory('mybatches');
+                        setDisplayCount(36);
+                      }}
+                      className="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--bg-secondary)] px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] hover:border-[var(--primary-color)] transition whitespace-nowrap"
+                    >
+                      <Compass className="h-4 w-4 text-[var(--primary-color)]" />
+                      <span>My Batches ({myBatches.length})</span>
+                    </button>
+                    <button
+                      onClick={() => setIsAddBatchModalOpen(true)}
+                      className="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl bg-[var(--primary-color)] px-4 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-90 transition active:scale-95 whitespace-nowrap"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span>Add Batch</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -468,17 +561,7 @@ export default function App() {
                     isFavorite={favorites.includes(batch.batch_id)}
                     onToggleFavorite={handleToggleFavorite}
                     onSelect={(b) => setSelectedBatch(b)}
-                    onQuickPlay={(b) => {
-                      setActiveLecture({
-                        title: `${b.name} - Orientation & Lecture 01`,
-                        videoUrl: `https://vidcloud.eu.org/play.php?batch_id=${b.batch_id}&title=${encodeURIComponent(
-                          b.name
-                        )}`,
-                        batchId: b.batch_id,
-                        batchName: b.name,
-                        duration: 3600,
-                      });
-                    }}
+                    onQuickPlay={(b) => setSelectedBatch(b)}
                   />
                 ))}
               </div>
@@ -508,21 +591,35 @@ export default function App() {
           batch={selectedBatch}
           isFavorite={favorites.includes(selectedBatch.batch_id)}
           onToggleFavorite={handleToggleFavorite}
+          adventureState={adventureState}
+          isEnrolled={
+            adventureState.enrolledBatchIds.includes(selectedBatch.batch_id) ||
+            adventureState.customBatches.some((b) => b.batch_id === selectedBatch.batch_id)
+          }
+          onToggleEnroll={(batchId) => setAdventureState(toggleEnrolledBatch(batchId))}
+          onToggleLectureComplete={(params) => setAdventureState(toggleLectureCompleted(params))}
           onClose={() => setSelectedBatch(null)}
           onPlayLecture={(lec) => {
             setActiveLecture({
+              batchId: lec.batchId,
+              batchName: lec.batchName,
+              subjectId: lec.subjectId,
+              subjectName: lec.subjectName,
+              topicId: lec.topicId,
+              topicName: lec.topicName,
+              videoId: lec.videoId,
+              findKey: lec.findKey,
+              videoDetailsId: lec.videoDetailsId,
+              typeId: lec.typeId,
               title: lec.title,
-              videoUrl: lec.videoUrl,
-              batchId: selectedBatch.batch_id,
-              batchName: selectedBatch.name,
-              duration: lec.duration,
+              videoImg: lec.videoImg,
+              videoType: lec.videoType,
+              playType: lec.playType,
+              rawVideoUrl: lec.rawVideoUrl,
             });
             handleRefreshHistory();
           }}
-          onOpenInCloudWebview={(batchId) => {
-            setSelectedBatch(null);
-            setCurrentTab('webview');
-          }}
+          onSelectSubBatch={(subBatch) => setSelectedBatch(subBatch)}
         />
       )}
 
@@ -530,13 +627,22 @@ export default function App() {
       {activeLecture && (
         <VideoPlayerView
           lecture={activeLecture}
+          onAdventureUpdate={() => setAdventureState(getAdventureState())}
           onBack={() => {
             setActiveLecture(null);
+            setAdventureState(getAdventureState());
             handleRefreshHistory();
           }}
-          onOpenInCloudWebview={() => {
-            setActiveLecture(null);
-            setCurrentTab('webview');
+        />
+      )}
+
+      {/* Add Batch Modal */}
+      {isAddBatchModalOpen && (
+        <AddBatchModal
+          onClose={() => setIsAddBatchModalOpen(false)}
+          onAddBatch={(batch) => {
+            setAdventureState(addCustomBatch(batch));
+            setActiveCategory('mybatches');
           }}
         />
       )}

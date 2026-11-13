@@ -1,16 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Palette,
   Download,
-  Send,
-  MessageSquare,
-  ExternalLink,
-  ShieldCheck,
-  RotateCw,
+  Plus,
   Smartphone,
   Trash2,
   Info,
   CheckCircle2,
+  Compass,
+  RotateCcw,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { ThemeId, AppControls } from '../types';
@@ -19,7 +17,17 @@ interface SettingsViewProps {
   currentTheme: ThemeId;
   onOpenThemes: () => void;
   onOpenAbout: () => void;
-  appControls: AppControls | null;
+  onOpenAddBatch: () => void;
+  onResetAdventure: () => void;
+  adventureStats: {
+    xp: number;
+    level: number;
+    rank: string;
+    currentStreak: number;
+    completedCount: number;
+    enrolledCount: number;
+  };
+  appControls?: AppControls | null;
   onClearCache: () => void;
 }
 
@@ -27,44 +35,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   currentTheme,
   onOpenThemes,
   onOpenAbout,
-  appControls,
+  onOpenAddBatch,
+  onResetAdventure,
+  adventureStats,
   onClearCache,
 }) => {
   const { isInstallable, isInstalled, install, isIOS } = usePWAInstall();
+  const [cacheCleared, setCacheCleared] = useState(false);
+  const [confirmResetAdv, setConfirmResetAdv] = useState(false);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 pb-8">
-      {/* Title */}
       <div>
         <h2 className="font-['Sora'] text-lg sm:text-xl font-bold text-[var(--text-primary)]">
           App Settings & Controls
         </h2>
         <p className="text-xs text-[var(--text-secondary)]">
-          Configure preferences, app installation, and official study channels
+          Manage your batches, Adventure progress, appearance, and offline cache
         </p>
       </div>
 
       {/* PWA App Installation Card */}
-      <div className="rounded-3xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900/40 p-5 shadow-lg">
+      <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--primary-color)]/15 text-[var(--primary-color)]">
               <Smartphone className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-['Sora'] text-sm font-bold text-white">
+              <h3 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
                 VidCloud Web App
               </h3>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-[var(--text-secondary)]">
                 {isInstalled
-                  ? 'Application is installed & running in standalone mode'
+                  ? 'Application is installed and running in standalone mode'
                   : 'Install to your device home screen for fullscreen & offline access'}
               </p>
             </div>
           </div>
 
           {isInstalled ? (
-            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
               <span>Installed</span>
             </div>
@@ -72,12 +83,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             (isInstallable || isIOS) && (
               <button
                 onClick={install}
-                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:from-indigo-600 hover:to-purple-700 transition active:scale-95"
+                className="flex items-center gap-1.5 rounded-xl bg-[var(--primary-color)] px-4 py-2 text-xs font-bold text-white shadow-md hover:opacity-90 transition active:scale-95"
               >
                 <Download className="h-4 w-4" />
                 <span>Install</span>
               </button>
             )
+          )}
+        </div>
+      </div>
+
+      {/* Batch Adventure & Enrollment Card */}
+      <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Compass className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
+                Batch Adventure & Streak
+              </h4>
+              <p className="text-xs text-[var(--text-secondary)] font-mono tabular-nums">
+                Lv.{adventureStats.level} · {adventureStats.rank} · {adventureStats.xp} XP · {adventureStats.currentStreak}d Streak
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenAddBatch}
+            className="flex items-center gap-1.5 rounded-xl bg-[var(--primary-color)] px-3.5 py-2 text-xs font-bold text-white hover:opacity-90 transition whitespace-nowrap shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add Batch</span>
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-[var(--card-border)] pt-3 text-xs">
+          <span className="text-[var(--text-secondary)] font-mono tabular-nums">
+            {adventureStats.enrolledCount} My Batches · {adventureStats.completedCount} Lectures Cleared
+          </span>
+          {!confirmResetAdv ? (
+            <button
+              onClick={() => setConfirmResetAdv(true)}
+              className="flex items-center gap-1 text-red-400 hover:underline font-semibold"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span>Reset Progress</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  onResetAdventure();
+                  setConfirmResetAdv(false);
+                }}
+                className="rounded-lg bg-red-600 px-2.5 py-1 text-[11px] font-bold text-white"
+              >
+                Confirm Reset
+              </button>
+              <button
+                onClick={() => setConfirmResetAdv(false)}
+                className="rounded-lg border border-[var(--card-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--text-secondary)]"
+              >
+                Cancel
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -107,132 +177,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Official Community Channels */}
-      <div className="space-y-2.5">
-        <h4 className="px-1 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-          Official Community & Links
-        </h4>
-
-        {/* Telegram */}
-        <a
-          href="https://telegram.me/studystark"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 transition hover:border-sky-500/50 hover:bg-sky-500/5"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400">
-              <Send className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
-                Join StudyStark Telegram
-              </h5>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Get daily batch updates, study materials, and schedules
-              </p>
-            </div>
-          </div>
-          <ExternalLink className="h-4 w-4 text-[var(--text-secondary)]" />
-        </a>
-
-        {/* WhatsApp */}
-        <a
-          href="https://www.whatsapp.com/channel/0029Vb7phJILikgEjnTVsx34"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 transition hover:border-emerald-500/50 hover:bg-emerald-500/5"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
-                WhatsApp Channel
-              </h5>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Direct updates and notifications
-              </p>
-            </div>
-          </div>
-          <ExternalLink className="h-4 w-4 text-[var(--text-secondary)]" />
-        </a>
-
-        {/* Add Batches Portal */}
-        <a
-          href="https://studystark.in/login/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 transition hover:border-[var(--primary-color)]/50"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
-              <RotateCw className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
-                Add Batches / Portal Login
-              </h5>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Link new courses to your StudyStark account
-              </p>
-            </div>
-          </div>
-          <ExternalLink className="h-4 w-4 text-[var(--text-secondary)]" />
-        </a>
-
-        {/* Download APK */}
-        <a
-          href="https://studystark.com/install/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 transition hover:border-emerald-500/50"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-              <Download className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
-                Download Android APK
-              </h5>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Download raw .apk installation package
-              </p>
-            </div>
-          </div>
-          <ExternalLink className="h-4 w-4 text-[var(--text-secondary)]" />
-        </a>
-      </div>
-
       {/* Cache & Maintenance */}
-      <div className="space-y-2.5">
-        <h4 className="px-1 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-          Data & Cache
-        </h4>
-
-        <div className="flex items-center justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
-              <Trash2 className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
-                Reset Offline Cache
-              </h5>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Clear cached batches and fetch fresh data from server
-              </p>
-            </div>
+      <div className="flex items-center justify-between rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+            <Trash2 className="h-5 w-5" />
           </div>
-          <button
-            onClick={onClearCache}
-            className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition"
-          >
-            Clear Cache
-          </button>
+          <div>
+            <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
+              Reset Offline Cache
+            </h5>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {cacheCleared
+                ? 'Local batch catalog cache refreshed!'
+                : 'Clear cached batches and fetch fresh catalog data'}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={() => {
+            onClearCache();
+            setCacheCleared(true);
+            setTimeout(() => setCacheCleared(false), 3000);
+          }}
+          className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition whitespace-nowrap shrink-0"
+        >
+          {cacheCleared ? 'Cleared' : 'Clear Cache'}
+        </button>
       </div>
 
       {/* About Box */}
@@ -243,9 +214,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           <div>
             <h5 className="font-['Sora'] text-sm font-bold text-[var(--text-primary)]">
-              VidCloud & StudyStark App
+              VidCloud Learning App
             </h5>
-            <p className="text-xs text-[var(--text-secondary)]">Version 2.2 • Developed by Dev Aryan</p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Built-in Native Player, Batches & Adventure Progress
+            </p>
           </div>
         </div>
         <button

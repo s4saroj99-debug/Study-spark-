@@ -1,62 +1,165 @@
-import { BatchItem, WatchHistoryItem, AppControls, ThemeId } from '../types';
+import {
+  BatchItem,
+  BatchSubject,
+  BatchTopic,
+  BatchVideoItem,
+  BatchNoteItem,
+  ResolvedStream,
+  WatchHistoryItem,
+  AppControls,
+  ThemeId,
+} from '../types';
 
-const BATCHES_URL = 'https://studystark.github.io/batches/batches.json';
-const CACHE_KEY = 'vidcloud_batches_cache';
-const CACHE_TIME_KEY = 'vidcloud_batches_cache_time';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const LEGACY_CACHE_KEY = 'vidcloud_batches_cache';
+const LEGACY_CACHE_TIME_KEY = 'vidcloud_batches_cache_time';
+const IDB_NAME = 'vidcloud_catalog_db';
+const IDB_STORE = 'catalog';
+const IDB_RECORD_KEY = 'batches_v2';
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 const FAVORITES_KEY = 'studystark_favorites';
 const HISTORY_KEY = 'studystark_history';
 const THEME_KEY = 'theme-mode';
 
-export async function fetchAllBatches(): Promise<{
+type BatchCatalogResult = {
   batches: BatchItem[];
   vidyapeeth: BatchItem[];
-}> {
-  // Check memory / local storage cache
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
-    if (cached && cachedTime && Date.now() - parseInt(cachedTime, 10) < CACHE_TTL_MS) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed.batches) && parsed.batches.length > 0) {
-        // Return cached immediately, fetch fresh in background
-        refreshBatchesInBackground();
-        return parsed;
-      }
+};
+
+let memoryCatalog: { data: BatchCatalogResult; savedAt: number } | null = null;
+
+function sortBatchesNewestFirst(list: BatchItem[]): BatchItem[] {
+  const seen = new Set<string>();
+  const deduped: BatchItem[] = [];
+  for (const item of list) {
+    if (!item?.batch_id || seen.has(item.batch_id)) continue;
+    seen.add(item.batch_id);
+    deduped.push(item);
+  }
+  return deduped.sort((a, b) => {
+    const ta = a.start_date ? Date.parse(a.start_date) : 0;
+    const tb = b.start_date ? Date.parse(b.start_date) : 0;
+    const va = Number.isFinite(ta) ? ta : 0;
+    const vb = Number.isFinite(tb) ? tb : 0;
+    return vb - va;
+  });
+}
+
+function openCatalogDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB unavailable'));
+      return;
     }
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('Failed to open catalog DB'));
+  });
+}
+
+async function readIdbCatalog(): Promise<{ data: BatchCatalogResult; savedAt: number } | null> {
+  try {
+    const db = await openCatalogDb();
+    return await new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const getReq = store.get(IDB_RECORD_KEY);
+      getReq.onsuccess = () => resolve(getReq.result || null);
+      getReq.onerror = () => resolve(null);
+    });
   } catch {
-    // ignore cache read error
+    return null;
+  }
+}
+
+async function writeIdbCatalog(data: BatchCatalogResult): Promise<void> {
+  try {
+    const db = await openCatalogDb();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      store.put({ data, savedAt: Date.now() }, IDB_RECORD_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    // ignore storage failures
+  }
+}
+
+export async function clearBatchCatalogCache(): Promise<void> {
+  memoryCatalog = null;
+  try {
+    localStorage.removeItem(LEGACY_CACHE_KEY);
+    localStorage.removeItem(LEGACY_CACHE_TIME_KEY);
+  } catch {
+    // ignore
+  }
+  try {
+    const db = await openCatalogDb();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(IDB_RECORD_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function purgeLegacyTruncatedCache(): void {
+  try {
+    localStorage.removeItem(LEGACY_CACHE_KEY);
+    localStorage.removeItem(LEGACY_CACHE_TIME_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export async function fetchAllBatches(): Promise<BatchCatalogResult> {
+  purgeLegacyTruncatedCache();
+
+  if (memoryCatalog && memoryCatalog.data.batches.length > 5000) {
+    if (Date.now() - memoryCatalog.savedAt > CACHE_TTL_MS) {
+      refreshBatchesInBackground();
+    }
+    return memoryCatalog.data;
+  }
+
+  const cached = await readIdbCatalog();
+  if (
+    cached &&
+    Array.isArray(cached.data?.batches) &&
+    cached.data.batches.length > 5000 &&
+    Date.now() - cached.savedAt < CACHE_TTL_MS
+  ) {
+    memoryCatalog = cached;
+    refreshBatchesInBackground();
+    return cached.data;
   }
 
   return fetchFreshBatches();
 }
 
-async function fetchFreshBatches(): Promise<{
-  batches: BatchItem[];
-  vidyapeeth: BatchItem[];
-}> {
+async function fetchFreshBatches(): Promise<BatchCatalogResult> {
   try {
-    const response = await fetch(BATCHES_URL, { cache: 'default' });
+    let response = await fetch('/api/batches');
+    if (!response.ok) {
+      response = await fetch('https://studystark.github.io/batches/batches.json');
+    }
     if (!response.ok) {
       throw new Error(`HTTP error ${response.status}`);
     }
     const json = await response.json();
-    const batches: BatchItem[] = (json.data || []).map((b: any) => ({
-      ...b,
-      isVidyapeeth: false,
-    }));
-    const vidyapeeth: BatchItem[] = (json.vidyapeeth_batches || []).map((b: any) => ({
-      ...b,
-      isVidyapeeth: true,
-    }));
-
-    const result = { batches, vidyapeeth };
-
-    // Save subset or cache to localStorage if possible without quota exceeded
-    try {
-      // Store lightweight cache (e.g. top 2500 batches or essential fields)
-      const lightBatches = batches.slice(0, 3000).map((b) => ({
+    const batches: BatchItem[] = sortBatchesNewestFirst(
+      (json.data || []).map((b: any) => ({
         batch_id: b.batch_id,
         name: b.name,
         byName: b.byName,
@@ -64,25 +167,37 @@ async function fetchFreshBatches(): Promise<{
         exam: b.exam,
         photo: b.photo,
         class: b.class,
+        start_date: b.start_date,
+        end_date: b.end_date,
         amount: b.amount,
         isVidyapeeth: false,
-      }));
-      localStorage.setItem(
-        CACHE_KEY,
-        JSON.stringify({ batches: lightBatches, vidyapeeth: vidyapeeth.slice(0, 500) })
-      );
-      localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-    } catch {
-      // Quota exceeded is normal for 18k items in localStorage, memory remains full
-    }
+      }))
+    );
+    const vidyapeeth: BatchItem[] = sortBatchesNewestFirst(
+      (json.vidyapeeth_batches || []).map((b: any) => ({
+        batch_id: b.batch_id,
+        name: b.name,
+        byName: b.byName,
+        language: b.language,
+        exam: b.exam,
+        photo: b.photo,
+        class: b.class,
+        start_date: b.start_date,
+        end_date: b.end_date,
+        amount: b.amount,
+        isVidyapeeth: true,
+      }))
+    );
 
+    const result: BatchCatalogResult = { batches, vidyapeeth };
+    memoryCatalog = { data: result, savedAt: Date.now() };
+    void writeIdbCatalog(result);
     return result;
   } catch (err) {
-    console.warn('Failed to fetch from github.io, trying fallback data:', err);
-    // If offline or blocked, return cached or fallback sample
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      return JSON.parse(cached);
+    console.warn('Failed to fetch batches, trying cached catalog:', err);
+    const cached = await readIdbCatalog();
+    if (cached?.data?.batches?.length) {
+      return cached.data;
     }
     return getFallbackBatches();
   }
@@ -90,6 +205,91 @@ async function fetchFreshBatches(): Promise<{
 
 function refreshBatchesInBackground() {
   fetchFreshBatches().catch(() => {});
+}
+
+export async function fetchBatchDetails(batchId: string): Promise<{
+  batch: any;
+  subjects: BatchSubject[];
+  mahapackBatches: any[];
+  announcements: any[];
+}> {
+  const res = await fetch(`/api/batch/${encodeURIComponent(batchId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to load batch details (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchSubjectTopics(
+  batchId: string,
+  subjectSlug: string,
+  page = 1
+): Promise<{ topics: BatchTopic[]; paginate: any }> {
+  const res = await fetch(
+    `/api/topics/${encodeURIComponent(batchId)}/${encodeURIComponent(subjectSlug)}?page=${page}`
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to load chapters (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchTopicContents(
+  batchId: string,
+  subjectSlug: string,
+  topicId: string,
+  contentType: 'videos' | 'notes' | 'DppNotes' | 'DppVideos' = 'videos',
+  page = 1
+): Promise<{ items: Array<BatchVideoItem | BatchNoteItem>; paginate: any }> {
+  const params = new URLSearchParams({
+    topicId,
+    contentType,
+    page: String(page),
+  });
+  const res = await fetch(
+    `/api/contents/${encodeURIComponent(batchId)}/${encodeURIComponent(subjectSlug)}?${params.toString()}`
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to load contents (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function resolveVideoStream(params: {
+  batchId: string;
+  subjectId: string;
+  topicId: string;
+  videoId: string;
+  findKey?: string;
+  videoDetailsId?: string;
+  videoName: string;
+  videoImg?: string;
+  videoType?: string;
+  playType?: string;
+  videoUrl?: string;
+  typeId?: string;
+}): Promise<ResolvedStream> {
+  const qs = new URLSearchParams({
+    batch_id: params.batchId,
+    subject_id: params.subjectId,
+    topic_id: params.topicId,
+    video_id: params.videoId,
+    video_name: params.videoName,
+    video_img: params.videoImg || '',
+    video_type: params.videoType || 'new',
+    play_type: params.playType || 'Lecture',
+  });
+  if (params.findKey) qs.set('find_key', params.findKey);
+  if (params.videoDetailsId) qs.set('video_details_id', params.videoDetailsId);
+  if (params.videoUrl) qs.set('video_url', params.videoUrl);
+  if (params.typeId) qs.set('typeId', params.typeId);
+
+  const res = await fetch(`/api/stream?${qs.toString()}`);
+  const json = await res.json();
+  if (!res.ok || !json.success) {
+    throw new Error(json.message || `Stream resolution failed (${res.status})`);
+  }
+  return json;
 }
 
 export async function fetchAppControls(): Promise<AppControls> {
@@ -157,12 +357,7 @@ export function getFavorites(): string[] {
 export function toggleFavorite(batchId: string): boolean {
   const current = getFavorites();
   const exists = current.includes(batchId);
-  let updated: string[];
-  if (exists) {
-    updated = current.filter((id) => id !== batchId);
-  } else {
-    updated = [batchId, ...current];
-  }
+  const updated = exists ? current.filter((id) => id !== batchId) : [batchId, ...current];
   try {
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
   } catch {
@@ -190,7 +385,7 @@ export function saveWatchHistory(item: Omit<WatchHistoryItem, 'watchedAt'>): voi
         ...item,
         watchedAt: Date.now(),
       },
-      ...filtered.slice(0, 49), // retain up to 50 items
+      ...filtered.slice(0, 49),
     ];
     localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
   } catch {
@@ -270,39 +465,6 @@ function getFallbackBatches(): { batches: BatchItem[]; vidyapeeth: BatchItem[] }
         photo: 'https://static.pw.live/5eb393ee95fab7468a79d189/ADMIN/1da7fd49-8e2c-44da-a186-5134e41d4d01.png',
         class: '12',
         amount: 5300,
-        isVidyapeeth: false,
-      },
-      {
-        batch_id: '65d862392b1da90018ad8f3c',
-        name: 'Yakeen NEET 2025 (Dropper)',
-        byName: 'India\'s Best NEET Dropper Batch',
-        language: 'Hinglish',
-        exam: 'NEET',
-        photo: 'https://static.pw.live/5eb393ee95fab7468a79d189/ADMIN/1da7fd49-8e2c-44da-a186-5134e41d4d01.png',
-        class: 'Dropper',
-        amount: 5100,
-        isVidyapeeth: false,
-      },
-      {
-        batch_id: '65d862392b1da90018ad8f3d',
-        name: 'Arjuna JEE 2026',
-        byName: 'For Class 11 JEE 2026 Aspirants',
-        language: 'Hinglish',
-        exam: 'IIT-JEE',
-        photo: 'https://static.pw.live/5eb393ee95fab7468a79d189/ADMIN/1da7fd49-8e2c-44da-a186-5134e41d4d01.png',
-        class: '11',
-        amount: 4800,
-        isVidyapeeth: false,
-      },
-      {
-        batch_id: '65d862392b1da90018ad8f3e',
-        name: 'Udaan 2025 (Class 10)',
-        byName: 'Board Exam & Foundation Batch',
-        language: 'Hinglish',
-        exam: 'Boards',
-        photo: 'https://static.pw.live/5eb393ee95fab7468a79d189/ADMIN/1da7fd49-8e2c-44da-a186-5134e41d4d01.png',
-        class: '10',
-        amount: 2500,
         isVidyapeeth: false,
       },
     ],

@@ -4,11 +4,11 @@ import {
   Palette,
   RotateCw,
   Search,
-  Globe,
-  Smartphone,
   Info,
   Heart,
   History,
+  Settings2,
+  BookOpen,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { NavTab } from '../types';
@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenAbout}
             className="group relative flex items-center gap-2.5 rounded-xl p-1 text-left transition hover:opacity-90 focus:outline-none"
-            title="About VidCloud & StudyStark"
+            title="About VidCloud"
           >
             <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 shadow-md shadow-indigo-500/20">
               <img
@@ -56,46 +56,15 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-sm font-extrabold text-white">VC</span>
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="font-['Sora'] text-base font-bold tracking-tight text-[var(--text-primary)]">
-                  VidCloud
-                </span>
-                <span className="rounded-md bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-bold text-indigo-400">
-                  APP v2.2
-                </span>
-              </div>
-              <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                StudyStark Platform
+              <span className="font-['Sora'] text-base font-bold tracking-tight text-[var(--text-primary)] whitespace-nowrap">
+                VidCloud
               </span>
             </div>
           </button>
         </div>
 
-        {/* View Mode Toggle Pill (Desktop & Tablet) */}
-        <div className="hidden sm:flex items-center rounded-xl border border-[var(--card-border)] bg-[var(--bg-secondary)] p-1 text-xs font-semibold">
-          <button
-            onClick={() => onTabChange('batches')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
-              currentTab !== 'webview'
-                ? 'bg-[var(--primary-color)] text-white shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            <span>Native App</span>
-          </button>
-          <button
-            onClick={() => onTabChange('webview')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${
-              currentTab === 'webview'
-                ? 'bg-[var(--primary-color)] text-white shadow-sm'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <Globe className="h-3.5 w-3.5" />
-            <span>Live Cloud Web</span>
-          </button>
-        </div>
+        {/* Spacing / Title Context */}
+        <div className="hidden sm:block" />
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -111,6 +80,20 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="inline xs:hidden">Install</span>
             </button>
           )}
+
+          {/* Batches shortcut (Desktop) */}
+          <button
+            onClick={() => onTabChange('batches')}
+            className={`hidden sm:flex h-9 items-center gap-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--bg-secondary)] px-3 text-xs font-bold transition hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] ${
+              currentTab === 'batches'
+                ? 'border-[var(--primary-color)] text-[var(--primary-color)]'
+                : 'text-[var(--text-secondary)]'
+            }`}
+            title="Browse Batches"
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>Batches</span>
+          </button>
 
           {/* Quick Search */}
           <button
@@ -148,6 +131,17 @@ export const Header: React.FC<HeaderProps> = ({
             title="Watch History"
           >
             <History className="h-4 w-4" />
+          </button>
+
+          {/* Settings shortcut */}
+          <button
+            onClick={() => onTabChange('settings')}
+            className={`hidden sm:flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--card-border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] ${
+              currentTab === 'settings' ? 'border-[var(--primary-color)] text-[var(--primary-color)]' : ''
+            }`}
+            title="Settings"
+          >
+            <Settings2 className="h-4 w-4" />
           </button>
 
           {/* Theme Switcher Button */}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Search, Heart, History, Globe, Settings2 } from 'lucide-react';
+import { BookOpen, Search, Heart, History, Settings2 } from 'lucide-react';
 import { NavTab } from '../types';
 
 interface BottomNavProps {
@@ -23,7 +23,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       badge: favoritesCount > 0 ? favoritesCount : null,
     },
     { id: 'history' as NavTab, label: 'History', icon: History },
-    { id: 'webview' as NavTab, label: 'Cloud Web', icon: Globe },
     { id: 'settings' as NavTab, label: 'Settings', icon: Settings2 },
   ];
 
