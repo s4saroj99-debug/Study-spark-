@@ -9,6 +9,7 @@ import {
   History,
   Settings2,
   BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { NavTab } from '../types';
@@ -93,6 +94,20 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <BookOpen className="h-4 w-4" />
             <span>Batches</span>
+          </button>
+
+          {/* Study AI shortcut */}
+          <button
+            onClick={() => onTabChange('ai')}
+            className={`flex h-9 items-center gap-1.5 rounded-lg border px-2.5 sm:px-3 text-xs font-bold transition ${
+              currentTab === 'ai'
+                ? 'border-[var(--primary-color)] bg-[var(--primary-color)] text-white shadow-sm'
+                : 'border-[var(--card-border)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--primary-color)] hover:text-[var(--primary-color)]'
+            }`}
+            title="Open Study AI Doubt Solver"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden xs:inline">Study AI</span>
           </button>
 
           {/* Quick Search */}

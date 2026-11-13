@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Search, Heart, History, Settings2 } from 'lucide-react';
+import { BookOpen, Sparkles, Heart, History, Settings2 } from 'lucide-react';
 import { NavTab } from '../types';
 
 interface BottomNavProps {
@@ -15,7 +15,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const tabs = [
     { id: 'batches' as NavTab, label: 'Batches', icon: BookOpen },
-    { id: 'search' as NavTab, label: 'Search', icon: Search },
+    { id: 'ai' as NavTab, label: 'Study AI', icon: Sparkles },
     {
       id: 'favorites' as NavTab,
       label: 'Favorites',

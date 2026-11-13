@@ -66,21 +66,87 @@ export interface BatchVideoItem {
   teachers?: string[];
 }
 
+export interface BatchAttachmentItem {
+  _id?: string;
+  baseUrl?: string;
+  key?: string;
+  name?: string;
+  url?: string;
+  resolvedUrl?: string;
+}
+
+export interface BatchNoteHomework {
+  _id: string;
+  topic?: string;
+  note?: string;
+  attachmentIds?: BatchAttachmentItem[];
+}
+
 export interface BatchNoteItem {
   _id: string;
   topic?: string;
   date?: string;
-  homeworkIds?: Array<{
-    _id: string;
-    topic?: string;
-    note?: string;
-    attachmentIds?: Array<{
-      _id: string;
-      baseUrl?: string;
-      key?: string;
-      name?: string;
-    }>;
-  }>;
+  homeworkIds?: BatchNoteHomework[];
+}
+
+export interface ScheduledClassItem {
+  _id: string;
+  topic: string;
+  date?: string;
+  dateKey?: string;
+  startTime?: string;
+  endTime?: string;
+  urlType?: string;
+  url?: string;
+  type?: string;
+  typeId?: string;
+  status?: string;
+  liveStatus?: 'LIVE' | 'UPCOMING' | 'COMPLETED';
+  subjectName?: string;
+  subjectSlug?: string;
+  batchSubjectId?: string;
+  topicName?: string;
+  topicId?: string;
+  teacherNames?: string[];
+  isDPPVideos?: boolean;
+  isDPPNotes?: boolean;
+  videoDetails?: {
+    _id?: string;
+    id?: string;
+    findKey?: string;
+    name?: string;
+    image?: string;
+    videoUrl?: string;
+    embedCode?: string;
+    duration?: string;
+  };
+  homeworkIds?: BatchNoteHomework[];
+  tags?: Array<{ _id: string; name: string }>;
+}
+
+export interface WeeklyRoutineSlot {
+  weekday: number; // 0 = Sun ... 6 = Sat (IST)
+  subjectName: string;
+  subjectSlug?: string;
+  batchSubjectId?: string;
+  startTime?: string;
+  endTime?: string;
+  sampleTopic?: string;
+  teacherNames?: string[];
+}
+
+export interface TodayScheduleResponse {
+  success: boolean;
+  source?: string;
+  date: string;
+  classes: ScheduledClassItem[];
+}
+
+export interface WeeklyScheduleResponse {
+  success: boolean;
+  source?: string;
+  classes: ScheduledClassItem[];
+  weeklyRoutine?: WeeklyRoutineSlot[];
 }
 
 export interface ResolvedStream {
@@ -99,12 +165,7 @@ export interface ResolvedStream {
     kidHex: string;
     keyHex: string;
   } | null;
-  attachments?: Array<{
-    name?: string;
-    url?: string;
-    baseUrl?: string;
-    key?: string;
-  }>;
+  attachments?: BatchAttachmentItem[];
   message?: string;
 }
 
@@ -157,7 +218,32 @@ export type ThemeId =
   | 'cyberpunk-neon'
   | 'light';
 
-export type NavTab = 'batches' | 'search' | 'favorites' | 'history' | 'settings';
+export type NavTab = 'batches' | 'search' | 'ai' | 'favorites' | 'history' | 'settings';
+
+export type AiStudyLanguage = 'hinglish' | 'hindi' | 'english';
+export type AiStudyMode = 'doubt' | 'formula' | 'quiz' | 'summary';
+
+export interface AiStudyContext {
+  batchName?: string;
+  subjectName?: string;
+  topicName?: string;
+  lectureTitle?: string;
+}
+
+export interface AiChatImage {
+  mimeType: string;
+  data: string; // raw base64 without data URL prefix
+  previewUrl?: string;
+}
+
+export interface AiChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  createdAt: number;
+  image?: AiChatImage;
+  mode?: AiStudyMode;
+}
 
 export interface CompletedLectureRecord {
   key: string; // `${batchId}:${videoId}`

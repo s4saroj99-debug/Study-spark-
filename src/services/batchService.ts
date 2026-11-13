@@ -1,9 +1,12 @@
 import {
+  BatchAttachmentItem,
   BatchItem,
   BatchSubject,
   BatchTopic,
   BatchVideoItem,
   BatchNoteItem,
+  TodayScheduleResponse,
+  WeeklyScheduleResponse,
   ResolvedStream,
   WatchHistoryItem,
   AppControls,
@@ -253,6 +256,76 @@ export async function fetchTopicContents(
     throw new Error(`Failed to load contents (${res.status})`);
   }
   return res.json();
+}
+
+export async function fetchTodaySchedule(batchId: string): Promise<TodayScheduleResponse> {
+  const res = await fetch(`/api/schedule/${encodeURIComponent(batchId)}/today`);
+  if (!res.ok) {
+    throw new Error(`Failed to load today schedule (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function fetchWeeklySchedule(
+  batchId: string,
+  startDate: string,
+  endDate: string,
+  page = 1
+): Promise<WeeklyScheduleResponse> {
+  const qs = new URLSearchParams({
+    startDate,
+    endDate,
+    page: String(page),
+  });
+  const res = await fetch(`/api/schedule/${encodeURIComponent(batchId)}/weekly?${qs.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to load weekly schedule (${res.status})`);
+  }
+  return res.json();
+}
+
+export function resolveAttachmentUrl(att: BatchAttachmentItem): string {
+  if (!att) return '';
+  if (att.resolvedUrl) {
+    return att.resolvedUrl.replace(/^https?:\/\/cors\.testfile\.eu\.org\//i, 'https://');
+  }
+  if (att.url) {
+    return att.url.replace(/^https?:\/\/cors\.testfile\.eu\.org\//i, 'https://');
+  }
+  const cleanBase = (att.baseUrl || '').replace(/^https?:\/\/cors\.testfile\.eu\.org\//i, 'https://');
+  const key = (att.key || '').trim();
+  if (!cleanBase || !key) return '';
+  return `${cleanBase.endsWith('/') ? cleanBase : `${cleanBase}/`}${key.replace(/^\//, '')}`;
+}
+
+export function buildPdfProxyUrl(rawUrl: string, fileName?: string, download = false): string {
+  const qs = new URLSearchParams({
+    url: rawUrl,
+    name: fileName || 'study-notes.pdf',
+  });
+  if (download) qs.set('download', '1');
+  return `/api/pdf-proxy?${qs.toString()}`;
+}
+
+export async function downloadPdfFile(rawUrl: string, fileName?: string): Promise<void> {
+  const safeName = (fileName || 'study-notes.pdf').trim();
+  const finalName = safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`;
+  const proxyUrl = buildPdfProxyUrl(rawUrl, finalName, true);
+
+  const res = await fetch(proxyUrl);
+  if (!res.ok) {
+    throw new Error(`PDF download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = finalName;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
 }
 
 export async function resolveVideoStream(params: {

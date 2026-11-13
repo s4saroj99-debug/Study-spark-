@@ -44,6 +44,7 @@ import { AddBatchModal } from './components/AddBatchModal';
 import { FavoritesView } from './components/FavoritesView';
 import { WatchHistoryView } from './components/WatchHistoryView';
 import { SettingsView } from './components/SettingsView';
+import { StudyAiPanel } from './components/StudyAiPanel';
 
 export default function App() {
   const isOnline = useOnlineStatus();
@@ -273,8 +274,13 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 pb-20 sm:pb-8">
-        {/* VIEW 1: FAVORITES */}
-        {currentTab === 'favorites' ? (
+        {/* VIEW 1: STUDY AI */}
+        {currentTab === 'ai' ? (
+          <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4">
+            <StudyAiPanel variant="page" scopeKey="global" />
+          </div>
+        ) : currentTab === 'favorites' ? (
+          /* VIEW 2: FAVORITES */
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
             <FavoritesView
               favoriteBatches={favoriteBatchItems}
@@ -338,14 +344,14 @@ export default function App() {
             />
           </div>
         ) : (
-          /* VIEW 5: BATCHES & SEARCH (Default Native App View) */
-          <div className="mx-auto max-w-7xl px-3 sm:px-6 py-4 sm:py-6 space-y-6">
+          /* VIEW 5: BATCHES & SEARCH (Full-Width Native App View) */
+          <div className="w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6">
             {/* Batch Adventure & Streak Hub */}
-            <div className="relative overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 sm:p-6 shadow-sm">
+            <div className="relative overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 sm:p-7 shadow-sm">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-                    <span className="font-semibold text-[var(--primary-color)]">
+                <div className="space-y-2.5">
+                  <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-[var(--text-secondary)]">
+                    <span className="font-bold text-[var(--primary-color)]">
                       Batch Adventure · Lv.{adventureMetrics.level} {adventureMetrics.rank}
                     </span>
                     <span aria-hidden="true">·</span>
@@ -353,54 +359,54 @@ export default function App() {
                       {allBatches.length > 0 ? `${allBatches.length.toLocaleString()} Batches` : 'Loading Batches...'}
                     </span>
                   </div>
-                  <h1 className="font-['Sora'] text-xl sm:text-2xl md:text-3xl font-extrabold text-[var(--text-primary)]">
+                  <h1 className="font-['Sora'] text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)]">
                     My Batches & Learning Adventure
                   </h1>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] max-w-xl">
+                  <p className="text-sm sm:text-base text-[var(--text-secondary)] max-w-2xl">
                     Track your daily study streak, clear chapter stages to earn XP, and stream
                     lectures with notes directly inside your app.
                   </p>
                 </div>
 
                 {/* Live Adventure Stats + Add Batch Controls */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <div className="grid grid-cols-3 gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-secondary)] px-4 py-3 text-center">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+                  <div className="grid grid-cols-3 gap-4 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-secondary)] px-5 py-3.5 text-center">
                     <div>
-                      <div className="flex items-center justify-center gap-1 font-mono tabular-nums text-base font-extrabold text-amber-400">
-                        <Flame className="h-4 w-4" />
+                      <div className="flex items-center justify-center gap-1 font-mono tabular-nums text-lg font-extrabold text-amber-400">
+                        <Flame className="h-5 w-5" />
                         <span>{adventureMetrics.currentStreak}d</span>
                       </div>
-                      <div className="text-[11px] text-[var(--text-secondary)]">Streak</div>
+                      <div className="text-xs text-[var(--text-secondary)]">Streak</div>
                     </div>
                     <div>
-                      <div className="flex items-center justify-center gap-1 font-mono tabular-nums text-base font-extrabold text-emerald-400">
-                        <Trophy className="h-4 w-4" />
+                      <div className="flex items-center justify-center gap-1 font-mono tabular-nums text-lg font-extrabold text-emerald-400">
+                        <Trophy className="h-5 w-5" />
                         <span>{adventureMetrics.xp}</span>
                       </div>
-                      <div className="text-[11px] text-[var(--text-secondary)]">Total XP</div>
+                      <div className="text-xs text-[var(--text-secondary)]">Total XP</div>
                     </div>
                     <div>
-                      <div className="font-mono tabular-nums text-base font-extrabold text-[var(--text-primary)]">
+                      <div className="font-mono tabular-nums text-lg font-extrabold text-[var(--text-primary)]">
                         {adventureMetrics.completedCount}
                       </div>
-                      <div className="text-[11px] text-[var(--text-secondary)]">Cleared</div>
+                      <div className="text-xs text-[var(--text-secondary)]">Cleared</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     <button
                       onClick={() => {
                         setActiveCategory('mybatches');
                         setDisplayCount(36);
                       }}
-                      className="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--bg-secondary)] px-3.5 py-2.5 text-xs font-bold text-[var(--text-primary)] hover:border-[var(--primary-color)] transition whitespace-nowrap"
+                      className="flex flex-1 sm:flex-initial items-center justify-center gap-2 rounded-2xl border border-[var(--card-border)] bg-[var(--bg-secondary)] px-4 py-3 text-xs sm:text-sm font-bold text-[var(--text-primary)] hover:border-[var(--primary-color)] transition whitespace-nowrap"
                     >
                       <Compass className="h-4 w-4 text-[var(--primary-color)]" />
                       <span>My Batches ({myBatches.length})</span>
                     </button>
                     <button
                       onClick={() => setIsAddBatchModalOpen(true)}
-                      className="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl bg-[var(--primary-color)] px-4 py-2.5 text-xs font-bold text-white shadow-md hover:opacity-90 transition active:scale-95 whitespace-nowrap"
+                      className="flex flex-1 sm:flex-initial items-center justify-center gap-2 rounded-2xl bg-[var(--primary-color)] px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:opacity-90 transition active:scale-95 whitespace-nowrap"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Add Batch</span>
@@ -414,7 +420,7 @@ export default function App() {
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
               {/* Search Bar */}
               <div className="relative flex-1">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--text-secondary)]" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -423,12 +429,12 @@ export default function App() {
                     setDisplayCount(36);
                   }}
                   placeholder="Search 18,000+ batches by name, exam (JEE, NEET), teacher, or class..."
-                  className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] py-3 pl-10 pr-10 text-xs sm:text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] shadow-sm focus:border-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/20 transition"
+                  className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] py-3.5 pl-12 pr-14 text-sm sm:text-base text-[var(--text-primary)] placeholder-[var(--text-secondary)] shadow-sm focus:border-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/20 transition"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     Clear
                   </button>
@@ -436,11 +442,11 @@ export default function App() {
               </div>
 
               {/* Language Filter */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <select
                   value={selectedLanguage}
                   onChange={(e) => setSelectedLanguage(e.target.value)}
-                  className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-3 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary-color)]"
+                  className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3.5 text-xs sm:text-sm font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary-color)]"
                 >
                   <option value="all">Language: All</option>
                   <option value="hinglish">Hinglish</option>
@@ -451,7 +457,7 @@ export default function App() {
                 <select
                   value={selectedClass}
                   onChange={(e) => setSelectedClass(e.target.value)}
-                  className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-3 text-xs font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary-color)]"
+                  className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3.5 text-xs sm:text-sm font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary-color)]"
                 >
                   <option value="all">Class: All</option>
                   <option value="12">Class 12</option>
@@ -463,8 +469,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Category Filter Pills (Horizontal Scroll) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            {/* Category Filter Tabs (Horizontal Scroll) */}
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-2 no-scrollbar">
               {categories.map((cat) => {
                 const isActive = activeCategory === cat.id;
                 const Icon = cat.icon;
@@ -475,17 +481,17 @@ export default function App() {
                       setActiveCategory(cat.id);
                       setDisplayCount(36);
                     }}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                    className={`flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
                       isActive
                         ? 'bg-[var(--primary-color)] text-white shadow-md shadow-indigo-600/20 scale-[1.02]'
                         : 'border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text-secondary)] hover:border-[var(--primary-color)]/40 hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    {Icon && <Icon className="h-3.5 w-3.5" />}
+                    {Icon && <Icon className="h-4 w-4" />}
                     <span>{cat.label}</span>
                     {cat.count && (
                       <span
-                        className={`rounded-md px-1.5 py-0.2 text-[10px] ${
+                        className={`rounded-lg px-2 py-0.5 text-xs ${
                           isActive ? 'bg-white/20 text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
                         }`}
                       >
@@ -498,7 +504,7 @@ export default function App() {
             </div>
 
             {/* Results Status */}
-            <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+            <div className="flex items-center justify-between text-xs sm:text-sm text-[var(--text-secondary)]">
               <span>
                 Showing <strong className="text-[var(--text-primary)]">{displayedBatches.length}</strong> of{' '}
                 <strong className="text-[var(--text-primary)]">{filteredBatches.length.toLocaleString()}</strong> batches
@@ -513,17 +519,17 @@ export default function App() {
             {/* Batches Grid */}
             {isLoadingBatches ? (
               /* Skeletons */
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex flex-col overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] animate-pulse"
+                    className="flex flex-col overflow-hidden rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] animate-pulse"
                   >
                     <div className="aspect-video w-full bg-[var(--bg-tertiary)]" />
-                    <div className="p-4 space-y-2.5">
-                      <div className="h-4 w-3/4 rounded bg-[var(--bg-tertiary)]" />
-                      <div className="h-3 w-1/2 rounded bg-[var(--bg-tertiary)]" />
-                      <div className="h-3 w-full rounded bg-[var(--bg-tertiary)]" />
+                    <div className="p-5 space-y-3">
+                      <div className="h-5 w-3/4 rounded bg-[var(--bg-tertiary)]" />
+                      <div className="h-4 w-1/2 rounded bg-[var(--bg-tertiary)]" />
+                      <div className="h-4 w-full rounded bg-[var(--bg-tertiary)]" />
                     </div>
                   </div>
                 ))}
@@ -531,11 +537,11 @@ export default function App() {
             ) : filteredBatches.length === 0 ? (
               /* Empty state */
               <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-[var(--card-border)] bg-[var(--bg-secondary)]/50 p-12 text-center">
-                <GraduationCap className="h-12 w-12 text-slate-500 mb-3" />
-                <h3 className="font-['Sora'] text-base font-bold text-[var(--text-primary)]">
+                <GraduationCap className="h-14 w-14 text-slate-500 mb-3" />
+                <h3 className="font-['Sora'] text-lg font-bold text-[var(--text-primary)]">
                   No Batches Found
                 </h3>
-                <p className="mt-1 text-xs text-[var(--text-secondary)] max-w-sm">
+                <p className="mt-1.5 text-sm text-[var(--text-secondary)] max-w-sm">
                   We couldn't find any batches matching your filter. Try adjusting your keyword or
                   selecting "All Batches".
                 </p>
@@ -546,14 +552,14 @@ export default function App() {
                     setSelectedLanguage('all');
                     setSelectedClass('all');
                   }}
-                  className="mt-4 rounded-xl bg-[var(--primary-color)] px-4 py-2 text-xs font-bold text-white shadow-md hover:opacity-90"
+                  className="mt-5 rounded-2xl bg-[var(--primary-color)] px-5 py-2.5 text-sm font-bold text-white shadow-md hover:opacity-90"
                 >
                   Reset Filters
                 </button>
               </div>
             ) : (
-              /* Real Batch Cards */
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              /* Real Batch Cards (Spacious Full-Width Grid) */
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {displayedBatches.map((batch) => (
                   <BatchCard
                     key={batch.batch_id}
@@ -572,7 +578,7 @@ export default function App() {
               <div className="flex justify-center pt-4">
                 <button
                   onClick={() => setDisplayCount((prev) => prev + 36)}
-                  className="flex items-center gap-2 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-6 py-3 text-xs font-bold text-[var(--text-primary)] shadow-sm hover:border-[var(--primary-color)] hover:bg-[var(--bg-tertiary)] transition active:scale-95"
+                  className="flex items-center gap-2 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-7 py-3.5 text-sm font-bold text-[var(--text-primary)] shadow-sm hover:border-[var(--primary-color)] hover:bg-[var(--bg-tertiary)] transition active:scale-95"
                 >
                   <RefreshCw className="h-4 w-4 text-[var(--primary-color)]" />
                   <span>
